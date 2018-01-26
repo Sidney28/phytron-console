@@ -1,5 +1,3 @@
 
-
 all:
-	g++ phytron-console.cpp -o phytron-console
-
+	g++ phytron-console.cpp -o phytron-console -lreadline

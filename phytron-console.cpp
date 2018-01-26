@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <unistd.h> 
 #include <string.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 char ctrln='0';
 
@@ -18,7 +20,8 @@ void print_response(const char * res);
 int main(int argc, const char ** argv){
 	char buffer1[FILENAME_MAX];
 	char buffer2[FILENAME_MAX];
-
+	char shell_prompt[256];
+	char *input;
 	int sockd = 0;
 	int port = 0;
 	int readc = 0;
@@ -27,7 +30,7 @@ int main(int argc, const char ** argv){
 	hostent * server;
 
 	if( argc > 3 || argc < 2 ){
-		fprintf(stderr, "Usage: %s IP [PORT]", argv[0]);
+		fprintf(stderr, "Usage: %s IP [PORT]\n", argv[0]);
 		exit(-1);
 	}
 	if( argc == 3 )
@@ -60,28 +63,30 @@ int main(int argc, const char ** argv){
 	}
 
 	while(true){
-		printf(" >>> ");
-		if(fgets(buffer1,FILENAME_MAX,stdin)==NULL){
-			printf("\n");
-			exit(0);
+		snprintf(shell_prompt, sizeof(shell_prompt), "%s (%s:%d) >>> ", "phytron", argv[1], port);
+		if((input = readline(shell_prompt))==NULL){
+			break;
 		}
-		buffer1[FILENAME_MAX-1]=0;
-		for(char * p = buffer1; *p!=0; p++){
+		// path autocompletion when tabulation hit
+		rl_bind_key('\t', rl_complete);
+		// adding the previous input into history
+		add_history(input);
+		
+		for(char * p = input; *p!=0; p++){
 			if(*p == '\n'){
 			       	*p=0;
 				break;
 			}
 		}
-		if(buffer1[0]==0){
-			printf("Empty string!\n");
+		if(input[0]==0){
 			continue;
 		}
-		if(strcmp(buffer1,"EXIT") == 0 ){
+		if(strcmp(input,"EXIT") == 0 ){
 			printf("Bye!\n");
 			exit(0);
 		}
 
-		snprintf(buffer2,FILENAME_MAX,"\x02%c%s:%02X\x03",ctrln,buffer1,(int)(crc(buffer1)^':'^ctrln));
+		snprintf(buffer2,FILENAME_MAX,"\x02%c%s:%02X\x03",ctrln,input,(int)(crc(input)^':'^ctrln));
 		//printf("request : \'");
 		//printx(buffer2);
 		//printf("\'\n");
@@ -103,6 +108,7 @@ int main(int argc, const char ** argv){
 		//printx(buffer1);
 		//printf("\'\n");
 		print_response(buffer1);
+		free(input);
 	}
 	return 0;
 }
